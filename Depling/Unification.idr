@@ -17,6 +17,21 @@ find e (g :: us) =
 		let (g', us') = find e us
 		in (g', g :: us')
 
+is_concrete : DAST n -> Bool
+is_concrete (ʌ _) = False
+is_concrete _ = True
+
+is_similar : DAST n -> DAST n -> Bool
+is_similar (ʌ _) (ʌ _) = True
+is_similar 𝕋 𝕋 = True
+is_similar (𝕌 ln lt) (𝕌 rn rt) = ln == rn && is_similar lt rt
+is_similar (ℂ {a=la} lc las) (ℂ {a=ra} rc ras) =
+	la == ra &&
+	lc == believe_me rc &&
+	and (zipWith (\a, b => is_similar a b) las $ believe_me ras)
+is_similar (𝔹 lt) (𝔹 rt) = is_similar lt rt
+is_similar l r = False
+
 mutual
 	%assert_total
 	do_merge : UnificationGroup l r -> (UnificationGroup l r, List (UnificationGroup l r)) -> (UnificationGroup l r, List (UnificationGroup l r))
