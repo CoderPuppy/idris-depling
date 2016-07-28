@@ -1,6 +1,7 @@
 module Utils
 
 import Data.Fin
+import Data.Vect
 
 total
 export
@@ -53,3 +54,27 @@ export
 ltePlus : LTE n m -> LTE (a + n) (a + m)
 ltePlus {a=Z} lte = lte
 ltePlus {a=S a} lte = LTESucc $ ltePlus lte
+
+total
+export
+ltePlus' : LTE a (a + n)
+ltePlus' {a=Z} = LTEZero
+ltePlus' {a=S a} = LTESucc ltePlus'
+
+total
+export
+nonEmptyNub : NonEmpty l -> NonEmpty (nubBy f l)
+nonEmptyNub {l=[]} IsNonEmpty impossible
+nonEmptyNub {l=h::t} IsNonEmpty = IsNonEmpty
+
+total
+export
+nonEmptySort : NonEmpty l -> NonEmpty (sortBy f l)
+nonEmptySort {l=[]} IsNonEmpty impossible
+nonEmptySort {l=h::t} IsNonEmpty = believe_me $ the (NonEmpty [1, 2]) IsNonEmpty
+
+total
+export
+nonEmptyMap : NonEmpty l -> NonEmpty (map f l)
+nonEmptyMap {l=[]} IsNonEmpty impossible
+nonEmptyMap {l=h::t} IsNonEmpty = IsNonEmpty
