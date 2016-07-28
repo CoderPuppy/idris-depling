@@ -4,10 +4,14 @@ import Depling
 import Depling.Incr
 import Depling.Elevate
 import Depling.Reduce
+import Depling.Replace
 import Depling.Decr
+import Depling.Unification
+import Utils
 import Data.Vect
 
 total
+export
 dType : Vect n (DAST n) -> DAST n -> DAST n
 dType c (ʌ v) = index v c
 dType c (λ at b) = λT at $ dType (map (incr 0) $ at :: c) b
@@ -20,45 +24,38 @@ dType c (ℂ {a} (DConV n ats rt) as) = dAppN (elevate $ dLamN ats $ replace (sy
 dType c (ℙ v cn t f) = dType c f
 dType c (𝔹 t) = t
 
+public export
 data DTypeError : Type where
-	DExactTypeError : DAST n -> DAST n -> DAST n -> DTypeError
-	DSimilarTypeError : DAST n -> DAST n -> DAST a -> DTypeError
+	DTypeErrorV : Maybe (DAST n) -> List (DAST n) -> DTypeError
+
+total
+check : Maybe (DAST n) -> UnificationGroup n n -> Maybe DTypeError
+check a (UnificationGroupV es {ne}) with (nubBy is_similar $ map fromEither es)
+	check a (UnificationGroupV _ {ne}) | [e] = Nothing
+	check a (UnificationGroupV _ {ne}) | es' = Just $ DTypeErrorV a es'
 
 total
 ensureType : Vect n (DAST n) -> DAST n -> DAST n -> List DTypeError
-ensureType {n} c a t =
-	let
-		at = fullReduce $ dType c a
-	in
-	if at == fullReduce t
-	then []
-	else [DExactTypeError a at t]
+ensureType {n} c a t = catMaybes $ map (check $ Just a) $ unify (fullReduce $ dType c a) (fullReduce t) []
+
+reverse : DRCtx n m -> Vect m (DAST m) -> Vect (n + m) (DAST (n + m))
+reverse [] c = c
+reverse {n=S n} {m} (h :: t) c = rewrite plusSuccRightSucc n m in reverse t $ map (incr 0) $ h :: c
+
+test : a -> b
 
 total
-ensureSimilarType : Vect n (DAST n) -> DAST n -> DAST a -> List DTypeError
-ensureSimilarType {n} c a t with (lfreduce $ dType c a)
-	ensureSimilarType c a 𝕋 | 𝕋 = []
-	ensureSimilarType {n} c a t@(ℂ (DConV nt _ _) _) | at@(ℂ (DConV na _ _) _) =
-		if na == nt
-		then []
-		else [DSimilarTypeError a at t]
-	ensureSimilarType {n} c a t | at = [DSimilarTypeError a at t]
-
--- reverse : DRCtx n m -> DCtx m -> DCtx (n + m)
--- reverse [] c = c
--- reverse {n=S n} {m} (h :: t) c = replace (sym $ plusSuccRightSucc n m) $ reverse t (h :-: c)
-
-total
+export
 typeCheck : Vect n (DAST n) -> DAST n -> List DTypeError
 typeCheck c (ʌ v) = []
 typeCheck c (λ at b) = typeCheck c at ++ ensureType c at 𝕋 ++ typeCheck (map (incr 0) $ at :: c) b
 typeCheck c (λT at r) = typeCheck c at ++ ensureType c at 𝕋 ++ typeCheck (map (incr 0) $ at :: c) r ++ ensureType (map (incr 0) $ at :: c) r 𝕋
-typeCheck {n} c (f =!= a) =
+typeCheck {n} c ast@(f =!= a) =
 	typeCheck c f ++
 	typeCheck c a ++
 	case fullReduce ft of
 		λT fat b => ensureType c a fat
-		_ => [DSimilarTypeError f ft $ λT at $ 𝕌 "result" 𝕋]
+		_ => [DTypeErrorV (Just ast) [ft, λT at $ 𝕌 "result" 𝕋]]
 	where
 		ft : DAST n
 		ft = dType c f
@@ -74,12 +71,30 @@ typeCheck {n} c (ℂ (DConV {a} _ ats rt) as) = assert_total $ typeCheck c tca +
 	where
 		tca : DAST n
 		tca = dAppN (elevate $ dLamN ats $ replace (sym $ plusZeroRightNeutral a) $ rt) (toList as)
-typeCheck {n} c (ℙ v (DConV {a} _ ats rt) t f) =
-	?typeCheck_ℙ
-	-- typeCheck c v ++
-	-- ensureSimilarType {a=Z} (reverse ats DCNil) (replace (sym $ plusZeroRightNeutral a) $ rt) 𝕋 ++
-	-- ensureSimilarType c v (lfreduce rt) ++
-	-- typeCheck c f ++
-	-- typeCheck (reverse (elevateRC {gte=LTEZero} ats) c) t ++
-	-- ensureType (reverse (elevateRC {gte=LTEZero} ats) c) t (incr' $ dType c f)
+typeCheck {n} c a@(ℙ v (DConV {a} _ ats rt) t f) =
+	typeCheck c v ++
+	typeCheck c f ++
+	typeCheck (reverse (elevateRC {gte=LTEZero} ats) c) t ++
+	(catMaybes $ map (check $ Just $ incr' a) groups) ++
+	ensureType (map replace' $ reverse (elevateRC {gte=LTEZero} ats) c) (replace' t) (replace' $ incr' $ dType c f)
+	where
+		total
+		groups : List (UnificationGroup (a + n) (a + n))
+		groups =
+			map (map $ either (Left . incr') (Right . elevate {gte = ltePlus'})) $
+			unify (fullReduce $ dType c v) (fullReduce $ rt) []
+
+		total
+		replacements : List (DAST (a + n), DAST (a + n))
+		replacements = do
+			g <- groups
+			let pr = primary g
+			let UnificationGroupV es = g
+			e <- es
+			if e == pr
+			then []
+			else pure (fromEither pr, fromEither e)
+		
+		replace' : DAST (a + n) -> DAST (a + n)
+		replace' a = foldl (\a, (p, r) => dReplace p r a) a replacements
 typeCheck c (𝔹 t) = typeCheck c t ++ ensureType c t 𝕋

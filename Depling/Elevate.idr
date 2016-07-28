@@ -20,6 +20,7 @@ elevate {n} {m} {gte} (ℙ v cn t f) = ℙ (elevate v) cn (elevate {gte = ltePlu
 elevate (𝔹 t) = 𝔹 (elevate t)
 
 total
+export
 elevateRC : {auto gte : GTE m n} -> DRCtx a n -> DRCtx a m
 elevateRC [] = []
 elevateRC {gte} (h :: t) = elevate h :: elevateRC {gte = LTESucc gte} t
