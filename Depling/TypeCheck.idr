@@ -36,7 +36,7 @@ check a (UnificationGroupV es {ne}) with (nubBy is_similar $ map fromEither es)
 
 total
 ensureType : Vect n (DAST n) -> DAST n -> DAST n -> List DTypeError
-ensureType {n} c a t = catMaybes $ map (check $ Just a) $ unify (fullReduce $ dType c a) (fullReduce t) []
+ensureType {n} c a t = catMaybes $ map (check $ Just a) $ unify (dType c a) t []
 
 reverse : DRCtx n m -> Vect m (DAST m) -> Vect (n + m) (DAST (n + m))
 reverse [] c = c
@@ -53,7 +53,7 @@ typeCheck c (λT at r) = typeCheck c at ++ ensureType c at 𝕋 ++ typeCheck (ma
 typeCheck {n} c ast@(f =!= a) =
 	typeCheck c f ++
 	typeCheck c a ++
-	case fullReduce ft of
+	case lfreduce ft of
 		λT fat b => ensureType c a fat
 		_ => [DTypeErrorV (Just ast) [ft, λT at $ 𝕌 "result" 𝕋]]
 	where
@@ -82,7 +82,7 @@ typeCheck {n} c a@(ℙ v (DConV {a} _ ats rt) t f) =
 		groups : List (UnificationGroup (a + n) (a + n))
 		groups =
 			map (map $ either (Left . incr') (Right . elevate {gte = ltePlus'})) $
-			unify (fullReduce $ dType c v) (fullReduce $ rt) []
+			unify (dType c v) rt []
 
 		total
 		replacements : List (DAST (a + n), DAST (a + n))

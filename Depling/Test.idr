@@ -1,6 +1,9 @@
 module Depling.Test
 
 import Depling
+import Depling.TypeCheck
+import Depling.PrettyPrint
+import Depling.Incr
 import Data.Vect
 import Data.Fin
 
@@ -88,3 +91,9 @@ lreflℂ = DConV "Refl" [𝕋, ʌ 0] $ ℂ leqℂ [ʌ 1, ʌ 0, ʌ 1, ʌ 0]
 
 lrefl : DAST n
 lrefl = λ 𝕋 $ λ (ʌ 0) $ ℂ lreflℂ [ʌ 1, ʌ 0]
+
+lPlusSuccRightSucc : DAST n
+lPlusSuccRightSucc {n} = λ lℕ $ λ lℕ $ t
+	where
+	t : DAST (S$ S$ n)
+	t = 𝔹 $ ℂ leqℂ [lℕ, lp =!= 𝔹 lℕ =!= 𝔹 lℕ, lℕ, ℂ lsℂ [𝔹 lℕ]]

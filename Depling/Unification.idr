@@ -34,6 +34,8 @@ export
 is_similar : DAST l -> DAST r -> Bool
 is_similar (ʌ _) _ = True
 is_similar _ (ʌ _) = True
+is_similar (_ =!= _) _ = True
+is_similar _ (_ =!= _) = True
 is_similar 𝕋 𝕋 = True
 is_similar (𝕌 ln lt) (𝕌 rn rt) = ln == rn && is_similar lt rt
 is_similar (ℂ {a=la} lc las) (ℂ {a=ra} rc ras) =
@@ -91,15 +93,15 @@ mutual
 
 	total
 	add : DAST l -> DAST r -> List (UnificationGroup l r) -> List (UnificationGroup l r)
-	add l r us =
+	add {l=ln} {r=rn} l r us =
 		let
 			(gl, us') = find (Left l) us
 			(gr, us'') = find (Right r) us'
 			f = assert_total $ case catMaybes $ the (List _) [gl, gr] of
-				[g1, g2] => do_merge g1 (g2, us'')
-				[g] => (g, us'')
+				[g1, g2] => add_to_group (Left l) $ add_to_group (Right r) $ do_merge g1 (g2, us'')
+				[g] => add_to_group (Left l) $ add_to_group (Right r) $ (g, us'')
 				[] => (UnificationGroupV [Left l, Right r], us'')
-			(UnificationGroupV g {ne}, us''') = add_to_group (Left l) $ add_to_group (Right r) f
+			(UnificationGroupV g {ne}, us''') = the (UnificationGroup ln rn, List (UnificationGroup ln rn)) f
 		in (UnificationGroupV (nub g) {ne = nonEmptyNub ne}) :: us'''
 
 	total
@@ -108,8 +110,8 @@ mutual
 	unify l@(ʌ v) r us = add l r us
 	unify l r@(ʌ v) us = add l r us
 	unify (λ lat lb) (λ rat rb) us = ?unify_λ
-	unify (λT lat lrt) (λT rat rrt) us = ?unify_λT
-	unify (lf =!= la) (rf =!= ra) us = unify lf rf $ unify la ra us
+	unify (λT lat lrt) (λT rat rrt) us = ?unify_λT $ unify lrt rrt []
+	-- unify (lf =!= la) (rf =!= ra) us = unify lf rf $ unify la ra us
 	unify 𝕋 𝕋 us = us
 	unify (𝔽 lat lrt lb) (𝔽 rat rrt rb) us = ?unify_𝔽
 	unify l@(𝕌 ln lt) r@(𝕌 rn rt) us =

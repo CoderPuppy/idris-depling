@@ -5,6 +5,7 @@ import Depling.Decr
 import Depling.Incr
 import Data.Fin
 import Data.Vect
+import Debug.Trace
 
 total
 reduce_ℙ : Vect a (DAST n) -> DAST (a + n) -> DAST n
