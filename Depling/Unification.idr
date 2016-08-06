@@ -1,6 +1,7 @@
 module Depling.Unification
 
 import Depling
+import Depling.Pull
 import Utils
 import Data.Fin
 import Data.Vect
@@ -45,10 +46,24 @@ is_similar (ℂ {a=la} lc las) (ℂ {a=ra} rc ras) =
 is_similar (𝔹 lt) (𝔹 rt) = is_similar lt rt
 is_similar l r = False
 
+total
+pull_group : UnificationGroup (S l) (S r) -> Maybe (UnificationGroup l r)
+pull_group {l} {r} (UnificationGroupV es) =
+	case
+		catMaybes $
+		map (either (map Left . pull 0) (map Right . pull 0)) es
+	of
+		[] => Nothing
+		es@(_ :: _) => Just $ UnificationGroupV es
+
+total
+pull_group' : UnificationGroup (a + l) (a + r) -> Maybe (UnificationGroup l r)
+pull_group' {a=Z} g = Just g
+pull_group' {a=S a} g = pull_group g >>= pull_group'
+
 mutual
-	%assert_total
 	do_merge : UnificationGroup l r -> (UnificationGroup l r, List (UnificationGroup l r)) -> (UnificationGroup l r, List (UnificationGroup l r))
-	do_merge (UnificationGroupV g1) (g2, us) = foldr add_to_group (g2, us) g1
+	do_merge (UnificationGroupV g1) (g2, us) = assert_total $ foldr add_to_group (g2, us) g1
 
 	total
 	try_merge1 : UnificationGroup l r -> UnificationGroup l r -> Maybe (UnificationGroup l r, List (UnificationGroup l r))
@@ -84,7 +99,7 @@ mutual
 					Just (g, us') => (g, mergeMany us us')
 					Nothing => (g, merge g' us [])
 
-			%assert_total
+			total
 			unify_h : Either (DAST l) (DAST r) -> Either (DAST l) (DAST r) -> List (UnificationGroup l r)
 			unify_h (Left a) (Left b) = map (map $ Left . fromEither) $ unify a b []
 			unify_h (Right a) (Right b) = map (map $ Right . fromEither) $ unify a b []
@@ -109,11 +124,23 @@ mutual
 	unify : DAST l -> DAST r -> List (UnificationGroup l r) -> List (UnificationGroup l r)
 	unify l@(ʌ v) r us = add l r us
 	unify l r@(ʌ v) us = add l r us
-	unify (λ lat lb) (λ rat rb) us = ?unify_λ
-	unify (λT lat lrt) (λT rat rrt) us = ?unify_λT $ unify lrt rrt []
+	unify (λ lat lb) (λ rat rb) us =
+		mergeMany
+			(catMaybes $ map pull_group $ unify lb rb [])
+			(unify lat rat us)
+	unify (λT lat lrt) (λT rat rrt) us =
+		mergeMany
+			(catMaybes $ map pull_group $ unify lrt rrt [])
+			(unify lat rat us)
 	-- unify (lf =!= la) (rf =!= ra) us = unify lf rf $ unify la ra us
 	unify 𝕋 𝕋 us = us
-	unify (𝔽 lat lrt lb) (𝔽 rat rrt rb) us = ?unify_𝔽
+	unify (𝔽 lat lrt lb) (𝔽 rat rrt rb) us =
+		mergeMany
+			(catMaybes $ map (\g => pull_group g >>= pull_group) $ unify lb rb [])
+			(mergeMany
+				(catMaybes $ map pull_group $ unify lrt rrt [])
+				(unify lat rat us)
+			)
 	unify l@(𝕌 ln lt) r@(𝕌 rn rt) us =
 		if ln == rn
 		then unify lt rt us
@@ -122,7 +149,14 @@ mutual
 		if la == ra && lc == believe_me rc
 		then assert_total $ foldr (\f, a => f a) us $ zipWith unify las (believe_me ras)
 		else add l r us
-	unify (ℙ lv lc lt lf) (ℙ rv rc rt rf) us = ?unify_ℙ
+	unify l@(ℙ lv lc@(DConV {a=la} _ _ _) lt lf) r@(ℙ rv rc@(DConV {a=ra} _ _ _) rt rf) us =
+		if la == ra && lc == believe_me rc
+		then
+			mergeMany
+				(catMaybes $ map pull_group' $ unify lt (believe_me rt) [])
+				(unify lf rf $ unify lv rv us)
+		else
+			add l r us
 	unify (𝔹 lt) (𝔹 rt) us = unify lt rt us
 	unify l r us = add l r us
 

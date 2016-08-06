@@ -63,6 +63,12 @@ ltePlus' {a=S a} = LTESucc ltePlus'
 
 total
 export
+ltePlus'' : LTE n (a + n)
+ltePlus'' {n=Z} = LTEZero
+ltePlus'' {n=S n} {a} = replace (plusSuccRightSucc a n) $ LTESucc ltePlus''
+
+total
+export
 nonEmptyNub : NonEmpty l -> NonEmpty (nubBy f l)
 nonEmptyNub {l=[]} IsNonEmpty impossible
 nonEmptyNub {l=h::t} IsNonEmpty = IsNonEmpty

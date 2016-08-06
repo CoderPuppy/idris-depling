@@ -95,12 +95,12 @@ mutual
 		t' <- pp' DPOpen c t
 		pure $ showParens (d > DPOpen) $ "𝔹 : " ++ t'
 
-%assert_total
+total
 pp_next : String -> String
 pp_next "" = "a"
-pp_next p with (strHead p)
-	| 'z' = strCons 'a' $ pp_next $ strTail p
-	| c = strCons (succ c) $ strTail p
+pp_next p with (assert_total $ strHead p)
+	| 'z' = assert_total $ strCons 'a' $ pp_next $ strTail p
+	| c = assert_total $ strCons (succ c) $ strTail p
 
 total
 pp_names : Stream String

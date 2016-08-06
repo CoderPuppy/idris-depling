@@ -38,10 +38,10 @@ reduce (ℂ cn as) = assert_total $ ℂ cn $ map reduce as
 reduce (ℙ v cn t f) = ℙ (reduce v) cn (reduce t) (reduce f)
 reduce (𝔹 t) = 𝔹 $ reduce t
 
-%assert_total
+total
 export
 fullReduce : DAST n -> DAST n
-fullReduce a = tick (reduce a) [a]
+fullReduce a = assert_total $ tick (reduce a) [a]
 	where
 		tick : DAST n -> List (DAST n) -> DAST n
 		tick r o = if elem r o then r else tick (reduce r) (r :: o)
@@ -68,10 +68,10 @@ lreduce (f =!= a) = lreduce f =!= a
 lreduce (ℙ v cn t f) = ℙ (lreduce v) cn t f
 lreduce a = a
 
-%assert_total
+total
 export
 lfreduce : DAST n -> DAST n
-lfreduce a = tick (lreduce a) a
+lfreduce a = assert_total $ tick (lreduce a) a
 	where
 		tick : DAST n -> DAST n -> DAST n
 		tick r o = if r == o then r else tick (lreduce r) r

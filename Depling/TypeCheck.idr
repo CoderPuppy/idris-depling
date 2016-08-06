@@ -42,8 +42,6 @@ reverse : DRCtx n m -> Vect m (DAST m) -> Vect (n + m) (DAST (n + m))
 reverse [] c = c
 reverse {n=S n} {m} (h :: t) c = rewrite plusSuccRightSucc n m in reverse t $ map (incr 0) $ h :: c
 
-test : a -> b
-
 total
 export
 typeCheck : Vect n (DAST n) -> DAST n -> List DTypeError

@@ -4,8 +4,10 @@ import Depling
 import Depling.TypeCheck
 import Depling.PrettyPrint
 import Depling.Incr
+import Depling.Elevate
 import Data.Vect
 import Data.Fin
+import Utils
 
 lℕℂ : DCon 0
 lℕℂ = DConV "ℕ" [] 𝕋
@@ -93,7 +95,22 @@ lrefl : DAST n
 lrefl = λ 𝕋 $ λ (ʌ 0) $ ℂ lreflℂ [ʌ 1, ʌ 0]
 
 lPlusSuccRightSucc : DAST n
-lPlusSuccRightSucc {n} = λ lℕ $ λ lℕ $ t
+lPlusSuccRightSucc {n} =
+	-- recurse : Nat -> Nat -> Nat
+	-- left : Nat
+	𝔽 lℕ (λT lℕ lℕ) $
+		-- right : Nat
+		λ lℕ $
+			ℙ (ʌ 1) lzℂ (ℂ lreflℂ [lℕ, ℂ lsℂ [ʌ 0]]) $
+			-- left : Nat
+			ℙ (ʌ 1) lsℂ (
+				ℙ (ʌ 3 =!= ʌ 0 =!= ʌ 1) lreflℂ (
+					ℂ lreflℂ [lℕ, ℂ lsℂ [ʌ 0]]
+				) $
+				elevate {gte=ltePlus'' {n=S$ S$ S$ n} {a=1}} t
+			) $
+			t
 	where
-	t : DAST (S$ S$ n)
-	t = 𝔹 $ ℂ leqℂ [lℕ, lp =!= 𝔹 lℕ =!= 𝔹 lℕ, lℕ, ℂ lsℂ [𝔹 lℕ]]
+	t : DAST (S$ S$ S$ n)
+	--  𝔹 : ℂ  =   [Nat, plus   left    ℂ succ [right], Nat, ℂ succ [plus   left    right]]
+	t = 𝔹 $ ℂ leqℂ [lℕ , lp =!= ʌ 1 =!= ℂ lsℂ  [ʌ 0  ], lℕ , ℂ lsℂ  [lp =!= ʌ 1 =!= ʌ 0  ]]
