@@ -1,4 +1,4 @@
-module Depling.Test
+module Main
 
 import Depling
 import Depling.TypeCheck
@@ -94,6 +94,9 @@ lreflℂ = DConV "Refl" [𝕋, ʌ 0] $ ℂ leqℂ [ʌ 1, ʌ 0, ʌ 1, ʌ 0]
 lrefl : DAST n
 lrefl = λ 𝕋 $ λ (ʌ 0) $ ℂ lreflℂ [ʌ 1, ʌ 0]
 
+lThe : DAST n
+lThe = λ 𝕋 $ λ (ʌ 0) $ ʌ 0
+
 lPlusSuccRightSucc : DAST n
 lPlusSuccRightSucc {n} =
 	-- recurse : Nat -> Nat -> Nat
@@ -103,14 +106,30 @@ lPlusSuccRightSucc {n} =
 		λ lℕ $
 			ℙ (ʌ 1) lzℂ (ℂ lreflℂ [lℕ, ℂ lsℂ [ʌ 0]]) $
 			-- left : Nat
-			ℙ (ʌ 1) lsℂ (
-				ℙ (ʌ 3 =!= ʌ 0 =!= ʌ 1) lreflℂ (
-					ℂ lreflℂ [lℕ, ℂ lsℂ [ʌ 0]]
-				) $
-				elevate {gte=ltePlus'' {n=S$ S$ S$ n} {a=1}} t
-			) $
-			t
+			-- ℙ (ʌ 1) lsℂ (
+				-- lThe =!= t =!= ℂ lreflℂ [lℕ, ℂ lsℂ [ʌ 0]]
+				𝕌 "wat" t
+				-- ℙ (ʌ 3 =!= ʌ 0 =!= ʌ 1) lreflℂ (
+					-- ℂ lreflℂ [lℕ, ℂ lsℂ [ʌ 0]]
+				-- ) $
+				-- 𝕌 "wat" $ elevate {gte=ltePlus'' {n=S$ S$ S$ n} {a=1}} t
+			-- ) $
+			-- 𝕌 "wat" t
 	where
 	t : DAST (S$ S$ S$ n)
-	--  𝔹 : ℂ  =   [Nat, plus   left    ℂ succ [right], Nat, ℂ succ [plus   left    right]]
-	t = 𝔹 $ ℂ leqℂ [lℕ , lp =!= ʌ 1 =!= ℂ lsℂ  [ʌ 0  ], lℕ , ℂ lsℂ  [lp =!= ʌ 1 =!= ʌ 0  ]]
+	--  ℂ  =   [Nat, plus   left    ℂ succ [right], Nat, ℂ succ [plus   left    right]]
+	t = ℂ leqℂ [lℕ , lp =!= ʌ 1 =!= ℂ lsℂ  [ʌ 0  ], lℕ , ℂ lsℂ  [lp =!= ʌ 1 =!= ʌ 0  ]]
+
+ltest' : DAST n
+ltest' = λ (ℂ leqℂ [lℕ, lz, lℕ, lz]) $ ʌ 0
+
+ltest : DAST n
+ltest = ltest' =!= ℂ lreflℂ [𝕋, 𝕋]
+
+ppTypeError : DTypeError -> String
+ppTypeError (DTypeErrorV e ts) =
+	(pp_n DPOpen [] $ replace (sym $ plusZeroRightNeutral _) e) ++ ":\n"
+	++ (unlines $ map (("  " ++) . pp_n DPOpen [] . replace (sym $ plusZeroRightNeutral _)) ts)
+
+main : IO ()
+main = putStrLn $ pp DPOpen [] $ lPlusSuccRightSucc

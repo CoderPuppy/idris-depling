@@ -11,6 +11,7 @@ pp_pull = do
 	put $ Prelude.Stream.tail st
 	pure $ head st
 
+public export
 data DPrec = DPOpen | DPApp | DPSingle
 Eq DPrec where
 	DPOpen == DPOpen = True
@@ -107,5 +108,18 @@ pp_names : Stream String
 pp_names = map reverse $ iterate pp_next "a"
 
 total
+export
 pp : DPrec -> Vect n String -> DAST n -> String
 pp d c a = fst $ runState (pp' d c a) pp_names
+
+total
+pp_n' : DPrec -> Vect n String -> DAST (m + n) -> State (Stream String) String
+pp_n' {m=Z} d c a = pp' d c a
+pp_n' {m=S m} d c a = assert_total $ do
+	name <- pp_pull
+	pp_n' {m} d (name :: c) (replace (plusSuccRightSucc _ _) a)
+
+total
+export
+pp_n : DPrec -> Vect n String -> DAST (m + n) -> String
+pp_n d c a = fst $ runState (pp_n' d c a) pp_names

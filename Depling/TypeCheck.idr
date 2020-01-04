@@ -26,17 +26,17 @@ dType c (𝔹 t) = t
 
 public export
 data DTypeError : Type where
-	DTypeErrorV : Maybe (DAST n) -> List (DAST n) -> DTypeError
+	DTypeErrorV : DAST n -> List (DAST n) -> DTypeError
 
 total
-check : Maybe (DAST n) -> UnificationGroup n n -> Maybe DTypeError
+check : DAST n -> UnificationGroup n n -> Maybe DTypeError
 check a (UnificationGroupV es {ne}) with (nubBy is_similar $ map fromEither es)
 	check a (UnificationGroupV _ {ne}) | [e] = Nothing
 	check a (UnificationGroupV _ {ne}) | es' = Just $ DTypeErrorV a es'
 
 total
 ensureType : Vect n (DAST n) -> DAST n -> DAST n -> List DTypeError
-ensureType {n} c a t = catMaybes $ map (check $ Just a) $ unify (dType c a) t []
+ensureType {n} c a t = catMaybes $ map (check a) $ unify (dType c a) t []
 
 reverse : DRCtx n m -> Vect m (DAST m) -> Vect (n + m) (DAST (n + m))
 reverse [] c = c
@@ -53,7 +53,7 @@ typeCheck {n} c ast@(f =!= a) =
 	typeCheck c a ++
 	case lfreduce ft of
 		λT fat b => ensureType c a fat
-		_ => [DTypeErrorV (Just ast) [ft, λT at $ 𝕌 "result" 𝕋]]
+		_ => [DTypeErrorV ast [ft, λT at $ 𝕌 "result" 𝕋]]
 	where
 		ft : DAST n
 		ft = dType c f
@@ -73,7 +73,7 @@ typeCheck {n} c a@(ℙ v (DConV {a} _ ats rt) t f) =
 	typeCheck c v ++
 	typeCheck c f ++
 	typeCheck (reverse (elevateRC {gte=LTEZero} ats) c) t ++
-	(catMaybes $ map (check $ Just $ incr' a) groups) ++
+	(catMaybes $ map (check $ incr' a) groups) ++
 	ensureType (map replace' $ reverse (elevateRC {gte=LTEZero} ats) c) (replace' t) (replace' $ incr' $ dType c f)
 	where
 		total

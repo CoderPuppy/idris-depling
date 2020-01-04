@@ -2,6 +2,7 @@ module Depling.Unification
 
 import Depling
 import Depling.Pull
+import Depling.Reduce
 import Utils
 import Data.Fin
 import Data.Vect
@@ -30,21 +31,24 @@ is_concrete : DAST n -> Bool
 is_concrete (ʌ _) = False
 is_concrete _ = True
 
-total
-export
-is_similar : DAST l -> DAST r -> Bool
-is_similar (ʌ _) _ = True
-is_similar _ (ʌ _) = True
-is_similar (_ =!= _) _ = True
-is_similar _ (_ =!= _) = True
-is_similar 𝕋 𝕋 = True
-is_similar (𝕌 ln lt) (𝕌 rn rt) = ln == rn && is_similar lt rt
-is_similar (ℂ {a=la} lc las) (ℂ {a=ra} rc ras) =
-	la == ra &&
-	lc == believe_me rc &&
-	(assert_total $ and $ zipWith (\a, b => is_similar a b) (toList las) (toList ras))
-is_similar (𝔹 lt) (𝔹 rt) = is_similar lt rt
-is_similar l r = False
+mutual
+  total
+  export
+  is_similar : DAST l -> DAST r -> Bool
+  is_similar l r = assert_total $ is_similar' (lfreduce l) (lfreduce r)
+
+  total
+  is_similar' : DAST l -> DAST r -> Bool
+  is_similar' (ʌ _) _ = True
+  is_similar' _ (ʌ _) = True
+  is_similar' 𝕋 𝕋 = True
+  is_similar' (𝕌 ln lt) (𝕌 rn rt) = ln == rn && is_similar lt rt
+  is_similar' (ℂ {a=la} lc las) (ℂ {a=ra} rc ras) =
+    la == ra &&
+    lc == believe_me rc &&
+    (assert_total $ and $ zipWith (\a, b => assert_total $ is_similar a b) (toList las) (toList ras))
+  is_similar' (𝔹 lt) (𝔹 rt) = is_similar lt rt
+  is_similar' l r = False
 
 total
 pull_group : UnificationGroup (S l) (S r) -> Maybe (UnificationGroup l r)
@@ -122,34 +126,38 @@ mutual
 	total
 	export
 	unify : DAST l -> DAST r -> List (UnificationGroup l r) -> List (UnificationGroup l r)
-	unify l@(ʌ v) r us = add l r us
-	unify l r@(ʌ v) us = add l r us
-	unify (λ lat lb) (λ rat rb) us =
+	unify l r us = assert_total $ unify' (lfreduce l) (lfreduce r) us
+
+	total
+	unify' : DAST l -> DAST r -> List (UnificationGroup l r) -> List (UnificationGroup l r)
+	unify' l@(ʌ v) r us = add l r us
+	unify' l r@(ʌ v) us = add l r us
+	unify' (λ lat lb) (λ rat rb) us =
 		mergeMany
 			(catMaybes $ map pull_group $ unify lb rb [])
 			(unify lat rat us)
-	unify (λT lat lrt) (λT rat rrt) us =
+	unify' (λT lat lrt) (λT rat rrt) us =
 		mergeMany
 			(catMaybes $ map pull_group $ unify lrt rrt [])
 			(unify lat rat us)
-	-- unify (lf =!= la) (rf =!= ra) us = unify lf rf $ unify la ra us
-	unify 𝕋 𝕋 us = us
-	unify (𝔽 lat lrt lb) (𝔽 rat rrt rb) us =
+	-- unify' (lf =!= la) (rf =!= ra) us = unify lf rf $ unify la ra us
+	unify' 𝕋 𝕋 us = us
+	unify' (𝔽 lat lrt lb) (𝔽 rat rrt rb) us =
 		mergeMany
 			(catMaybes $ map (\g => pull_group g >>= pull_group) $ unify lb rb [])
 			(mergeMany
 				(catMaybes $ map pull_group $ unify lrt rrt [])
 				(unify lat rat us)
 			)
-	unify l@(𝕌 ln lt) r@(𝕌 rn rt) us =
+	unify' l@(𝕌 ln lt) r@(𝕌 rn rt) us =
 		if ln == rn
 		then unify lt rt us
 		else add l r us
-	unify l@(ℂ lc@(DConV {a=la} _ _ _) las) r@(ℂ rc@(DConV {a=ra} _ _ _) ras) us =
+	unify' l@(ℂ lc@(DConV {a=la} _ _ _) las) r@(ℂ rc@(DConV {a=ra} _ _ _) ras) us =
 		if la == ra && lc == believe_me rc
 		then assert_total $ foldr (\f, a => f a) us $ zipWith unify las (believe_me ras)
 		else add l r us
-	unify l@(ℙ lv lc@(DConV {a=la} _ _ _) lt lf) r@(ℙ rv rc@(DConV {a=ra} _ _ _) rt rf) us =
+	unify' l@(ℙ lv lc@(DConV {a=la} _ _ _) lt lf) r@(ℙ rv rc@(DConV {a=ra} _ _ _) rt rf) us =
 		if la == ra && lc == believe_me rc
 		then
 			mergeMany
@@ -157,8 +165,8 @@ mutual
 				(unify lf rf $ unify lv rv us)
 		else
 			add l r us
-	unify (𝔹 lt) (𝔹 rt) us = unify lt rt us
-	unify l r us = add l r us
+	unify' (𝔹 lt) (𝔹 rt) us = unify lt rt us
+	unify' l r us = add l r us
 
 total
 extract : Either (DAST l) (DAST r) -> (n : Nat ** DAST n)
